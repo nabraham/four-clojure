@@ -343,7 +343,7 @@
         uni #(and (di %) (ne %))
         br (apply map vector b)
         di [[(ffirst b) (second (second b)) (last (last b))]
-              [(first (last b)) (second (second b)) (last (first b))]]
+            [(first (last b)) (second (second b)) (last (first b))]]
         bind (fn [x] (map vector (map uni x) (map first x))) 
         [horz vert diag] (map bind [b br di])]
     (cond 
@@ -351,3 +351,54 @@
       (some first vert) (second (first (filter first vert)))
       (some first diag) (second (first (filter first diag)))
       :else nil)))
+
+(defn tmp [[f s & r]]
+  (if (and f s)
+    (let [m (map min (rest f) (butlast f))
+          v (concat [(first f)] m [(last f)])]
+      (tmp (cons (map + v s) r)))
+    (apply min f)))
+
+(defn leven [s t]
+  (cond
+    (empty? s) (count t)
+    (empty? t) (count s)
+    :else (let [cost (if (= (last s) (last t)) 0 1)
+                ss (butlast s)
+                tt (butlast t)]
+            (min (inc (leven ss t)) (inc (leven s tt)) (+ cost (leven ss tt))))))
+
+(defn leven-fast
+  [a b]
+  (let [m (count a)
+        n (count b)
+        init (apply merge-with (fn [a b] b)
+                    (concat 
+                      ;;deletion
+                      (for [i (range 0 (+ 1 m))]
+                        {i {0 i}})
+                      ;;insertion
+                      (for [j (range 0 (+ 1 n))]
+                        {0 {j j}})))
+        table (reduce
+                (fn [d [i j]]
+                  (merge-with 
+                    (fn [a b] b) 
+                    d 
+                    {i {j (if (= (nth a (- i 1))
+                                 (nth b (- j 1)))
+                            ((d (- i 1)) (- j 1))
+                            (min 
+                              (+ ((d (- i 1)) 
+                                    j) 1) ;;deletion
+                              (+ ((d i) 
+                                    (- j 1)) 1) ;;insertion
+                              (+ ((d (- i 1)) 
+                                    (- j 1)) 1))) ;;substitution))
+                        }}))
+                init
+                (for [j (range 1 (+ 1 n))
+                      i (range 1 (+ 1 m))] [i j]))]
+
+    ((table m) n)))
+
